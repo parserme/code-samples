@@ -1,0 +1,300 @@
+###получить пути всех картинок для элемента инфоблока если известны номера свойств.
+
+```
+select
+  prop.iblock_element_id,
+  concat(fls1.subdir,'/',fls1.file_name) as img1,
+  concat(fls2.subdir,'/',fls2.file_name) as img2,
+  concat(fls3.subdir,'/',fls3.file_name) as img3,
+  concat(fls4.subdir,'/',fls4.file_name) as img4,
+  concat(fls5.subdir,'/',fls5.file_name) as img5
+from
+  b_iblock_element_prop_s15 prop
+left join b_file fls1 on
+  fls1.id=prop.property_85
+left join b_file fls2 on
+  fls2.id=prop.property_86
+left join b_file fls3 on
+  fls2.id=prop.property_87
+left join b_file fls4 on
+  fls2.id=prop.property_88
+left join b_file fls5 on
+  fls2.id=prop.property_89
+where
+  prop.iblock_element_id=152634
+```
+
+###получить список из инфоблока
+
+```
+select
+		el.name,
+		el.preview_text as text,
+		concat(fls1.subdir,'/',fls1.file_name) as pdf,
+		concat(fls2.subdir,'/',fls2.file_name) as img
+	from
+		b_iblock_element el 
+	left join
+		b_iblock_element_prop_s20 prop on
+			el.id=prop.iblock_element_id
+	left join
+		b_file fls1 on 
+			fls1.id=prop.property_100
+	left join
+		b_file fls2 on 
+			fls2.id=el.DETAIL_PICTURE
+where
+	el.iblock_id=20
+```
+
+###получить случайные три фото для отображения на главной странице
+
+```
+select
+  prop.iblock_element_id,
+  el.name,
+  concat(fls.subdir,'/',fls.file_name) as img
+from
+  b_iblock_element_prop_s15 prop
+left join
+  b_file fls on
+    fls.id=prop.property_85
+left join
+  b_iblock_element el on
+    el.id=prop.iblock_element_id
+order by
+  rand()
+limit 3;
+```
+
+берём именно из таблицы prop а el присоединяем т.к. не у всех есть фотографии, а я кстати не знаю появится ли в prop строка со значениями если у элемента они не заполнены, и не нужно ограничивать отбор по ид инфоблока...
+
+
+###список элементов с картинкой и доп свойством файл.
+
+```
+select
+		el.id,
+		el.name,
+		el.preview_text as text,
+		concat(fls1.subdir,'/',fls1.file_name) as pdf,
+		concat(fls2.subdir,'/',fls2.file_name) as img
+	from
+		b_iblock_element el 
+	left join
+		b_iblock_element_prop_s20 prop on
+			el.id=prop.iblock_element_id
+	left join
+		b_file fls1 on 
+			fls1.id=prop.property_100
+	left join
+		b_file fls2 on 
+			fls2.id=el.DETAIL_PICTURE
+where
+	el.iblock_id=20
+```
+
+###список подразделов одного раздела с картинкой и доп свойством раздела типа "файл"
+
+```
+select
+	ss.id,
+	ss.name,
+	concat(fls1.subdir,'/',fls1.file_name) as pdf,
+	concat(fls2.subdir,'/',fls2.file_name) as img
+from 
+	b_iblock_section sroot 
+left join
+	b_iblock_section ss on
+		sroot.id=ss.iblock_section_id and
+		ss.active='Y'
+left join 
+	b_uts_iblock_".REPORTS_IBLOCK_ID."_section prop on
+		ss.id=prop.value_id
+left join
+	b_file fls1 on
+		fls1.id=prop.uf_pdf
+left join
+	b_file fls2 on
+		fls2.id=ss.picture
+where
+	sroot.iblock_id=".REPORTS_IBLOCK_ID." and 
+	sroot.code='".PARTNERS_SECTION_CODE."'
+```
+
+###дополнительные поля у пользователя
+
+```
+select * from b_user_field where field_name='uf_Card' limit 10;
+```
+- только сами поля, значений нет.
+
+###как посмотреть у каких товаров больше всего дополнительных картинок?
+
+```
+select
+  el.id,
+  el.name,
+  sum(1) as q
+from
+  b_iblock_element_property elp
+inner join
+  b_iblock_element el on
+    el.id=elp.iblock_element_id 
+where
+  elp.iblock_property_id=16
+group by
+  elp.iblock_element_id
+order by
+  q desc
+limit 10;
+```
+
+по номеру iblock можно не ограничивать, т.к. номер свойства относится к определённому iblock.
+
+###обновилась ли цена на определённые товары после загрузки из 1с?
+
+```
+select
+  el.id,
+  el.iblock_id,
+  el.name,
+  pr.*
+from
+  b_iblock_element el
+left join
+  b_catalog_price pr on
+    pr.product_id=el.id
+where
+  name like '%Считай и играй%'
+```
+
+###найти дубли элементов по коду
+
+```
+select
+  el1.id,
+  el1.code,
+  el1.name
+from
+  b_iblock_element el1
+inner join
+  b_iblock_element el2 on
+    el2.code=el1.code and
+    el2.id!=el1.id
+where
+  el1.iblock_id=6 and
+  el2.iblock_id=6;
+```
+
+###как сделать номера заказов не по порядку.
+
+```
+alter table b_sale_order auto_increment=".($order_number+1+floor(mt_rand(1,10)));
+```
+
+
+###кол-во отзывов по магазинам
+```
+select
+  substring_index(post_message,',',1) as shopcode,
+  sum(1) as quant
+from
+  b_forum_message
+where
+  new_topic='N' and
+  approved='Y'
+group by
+  shopcode
+```
+###заполнить у элементов вновь созданное свойство инфоблока на основании в данном случае названия.
+
+```
+insert into
+  b_iblock_element_property (
+    IBLOCK_PROPERTY_ID,
+    IBLOCK_ELEMENT_ID,
+    VALUE)
+select
+  '429',
+  id,
+  substring(name,char_length(substring_index(name,',',1))+2)
+from
+  b_iblock_element
+where
+  iblock_id=17
+```
+
+
+###посмотреть id элемента по значению свойства (например, какое-нибудь уникальные свойство код товара...)
+
+```
+select
+  *
+from
+  b_iblock_element_property
+where
+  value='ЦБ-00004856' and
+  IBLOCK_PROPERTY_ID=341;
+```
+
+###вывести текст описания типа свойства справочник
+
+```
+select
+  uf_full_description
+from
+  rz_bitronic2_brand_reference
+where
+  uf_xml_id='mezonin' 
+```
+
+###посмотреть заказы без телефона
+
+```
+select
+  o.id as order_id,
+  opv.value as phone
+from
+  b_sale_order o
+left join
+  b_sale_order_props_value opv on
+    o.id=opv.order_id and
+    opv.order_props_id=3
+limit 10
+```
+
+id свойства телефон=3
+
+
+###проверка наличия записей с одинаковым IBLOCK_PROPERTY_ID, iblock_element_id, value и value_type.
+
+```
+select
+  elp1.*
+from 
+  b_iblock_element_property elp1
+inner join
+  b_iblock_element_property elp2 
+where 
+  elp1.IBLOCK_PROPERTY_ID=elp2.IBLOCK_PROPERTY_ID and
+  elp1.IBLOCK_ELEMENT_ID=elp2.IBLOCK_ELEMENT_ID and
+  elp1.VALUE=elp2.VALUE and
+  elp1.VALUE_TYPE=elp2.VALUE_TYPE and
+  elp1.id!=elp2.id and
+  not isnull(elp1.value) and 
+  not isnull(elp2.value);
+```
+
+###убрать пункты меню "настройки" из панели управления
+
+```
+select group_concat(operation_id) from b_task_operation where task_id=3 group by task_id
+delete from b_task_operation where task_id=3 and operation_id!=2
+select group_concat(operation_id) from b_task_operation where task_id=24 group by task_id
+```
+
+1) =2,4,5,6,7
+3) =48,49,50,51,52,53,54
+
+
